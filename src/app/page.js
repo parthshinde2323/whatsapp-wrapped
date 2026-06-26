@@ -66,7 +66,7 @@ function Counter({ target, duration = 2000 }) {
 function HourArc({ peakHour, hourCounts }) {
   const max = Math.max(...hourCounts);
   return (
-    <div className="flex items-end gap-[2px] h-16 w-full max-w-sm mx-auto mt-6">
+    <div className="flex items-end gap-[2px] h-20 w-full max-w-sm mx-auto mt-6">
       {hourCounts.map((count, hour) => (
         <div key={hour} className="flex-1 rounded-sm transition-all duration-500"
           style={{
@@ -83,12 +83,12 @@ function BarComparison({ people }) {
   const sorted = [...people].sort((a, b) => b.messageCount - a.messageCount);
   const max = Math.max(...sorted.map((p) => p.messageCount));
   return (
-    <div className="flex flex-col gap-3 w-full max-w-sm mx-auto mt-6">
+    <div className="flex flex-col gap-4 w-full max-w-sm mx-auto mt-6">
       {sorted.map((p, i) => (
         <div key={p.name}>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-zinc-400 truncate max-w-[180px]">{p.name}</span>
-            <span className="text-white">{p.messageCount.toLocaleString()}</span>
+          <div className="flex justify-between text-base mb-1">
+            <span className="text-zinc-300 truncate max-w-[180px]">{p.name}</span>
+            <span className="text-white font-medium">{p.messageCount.toLocaleString()}</span>
           </div>
           <div className="h-[3px] bg-zinc-800 rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all duration-1000"
@@ -117,7 +117,8 @@ function StatCard({ card, active }) {
     <div className={`absolute inset-0 flex flex-col items-center justify-center px-8 transition-all duration-500 ${
       active && show ? "opacity-100 translate-y-0" : active ? "opacity-0 translate-y-6" : "opacity-0 translate-y-6 pointer-events-none"
     }`}>
-      <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-600 mb-8">{card.label}</p>
+      {/* Card label — slightly bigger */}
+      <p className="text-xs uppercase tracking-[0.4em] text-zinc-500 mb-8">{card.label}</p>
 
       {/* Number card */}
       {card.type === "number" && (
@@ -125,13 +126,13 @@ function StatCard({ card, active }) {
           <h2 className="text-[96px] font-bold text-white leading-none tabular-nums mb-3">
             {active ? <Counter target={card.value} /> : "0"}
           </h2>
-          {card.subtitle && <p className="text-zinc-500 text-sm">{card.subtitle}</p>}
+          {card.subtitle && <p className="text-zinc-400 text-lg">{card.subtitle}</p>}
           {card.supporting && (
             <div className="flex gap-8 mt-10">
               {card.supporting.map((s, i) => (
-                <div key={i} className="text-center">
+                <div key={i} className="text-center bg-zinc-900 rounded-xl px-5 py-4">
                   <p className="text-white text-2xl font-semibold">{s.value}</p>
-                  <p className="text-zinc-600 text-xs mt-1">{s.label}</p>
+                  <p className="text-zinc-500 text-sm mt-1">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -142,20 +143,20 @@ function StatCard({ card, active }) {
       {/* Text card */}
       {card.type === "text" && (
         <>
-          <h2 className="text-5xl font-bold text-white text-center leading-tight mb-3 max-w-lg">{card.value}</h2>
-          {card.subtitle && <p className="text-zinc-500 text-sm mt-2">{card.subtitle}</p>}
-          {card.detail && <p className="text-zinc-600 text-xs mt-1">{card.detail}</p>}
+          <h2 className="text-5xl font-bold text-white text-center leading-tight mb-4 max-w-lg">{card.value}</h2>
+          {card.subtitle && <p className="text-zinc-400 text-lg mt-2">{card.subtitle}</p>}
+          {card.detail && <p className="text-zinc-600 text-base mt-2">{card.detail}</p>}
         </>
       )}
 
       {/* Emoji card */}
       {card.type === "emoji" && (
-        <div className="flex flex-col gap-6 w-full max-w-sm">
+        <div className="flex flex-col gap-4 w-full max-w-sm">
           {card.value.map((person, i) => (
-            <div key={i} className="flex items-center justify-between border-b border-zinc-900 pb-5">
+            <div key={i} className="flex items-center justify-between bg-zinc-900 rounded-xl px-5 py-5">
               <div>
-                <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">{person.name}</p>
-                <p className="text-zinc-600 text-xs">used {person.count} times</p>
+                <p className="text-zinc-400 text-sm uppercase tracking-widest mb-1">{person.name}</p>
+                <p className="text-zinc-300 text-base">used {person.count} times</p>
               </div>
               <span className="text-6xl">{person.emoji}</span>
             </div>
@@ -165,13 +166,13 @@ function StatCard({ card, active }) {
 
       {/* Words card */}
       {card.type === "words" && (
-        <div className="flex flex-col gap-6 w-full max-w-sm">
+        <div className="flex flex-col gap-5 w-full max-w-sm">
           {card.value.map((person, i) => (
-            <div key={i} className="border-b border-zinc-900 pb-4">
-              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-3">{person.name}</p>
+            <div key={i} className="bg-zinc-900 rounded-xl p-5">
+              <p className="text-zinc-400 text-sm uppercase tracking-widest mb-4">{person.name}</p>
               <div className="flex flex-wrap gap-2">
                 {person.words.map((w, j) => (
-                  <span key={j} className="px-3 py-1 rounded-full text-sm border border-zinc-700"
+                  <span key={j} className="px-4 py-2 rounded-full text-base border border-zinc-700"
                     style={{ color: "#ffffff", opacity: Math.max(1 - j * 0.12, 0.4) }}>
                     {w.word}
                   </span>
@@ -184,22 +185,22 @@ function StatCard({ card, active }) {
 
       {/* Slang card */}
       {card.type === "slang" && (
-        <div className="flex flex-col gap-6 w-full max-w-sm">
+        <div className="flex flex-col gap-5 w-full max-w-sm">
           {card.value.map((person, i) => (
-            <div key={i} className="border-b border-zinc-900 pb-4">
-              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-3">{person.name}</p>
+            <div key={i} className="bg-zinc-900 rounded-xl p-5">
+              <p className="text-zinc-400 text-sm uppercase tracking-widest mb-4">{person.name}</p>
               {person.slangs.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {person.slangs.map((s, j) => (
-                    <span key={j} className="px-3 py-1 rounded-full text-sm"
+                    <span key={j} className="px-4 py-2 rounded-full text-base"
                       style={{ color: "#ffffff", backgroundColor: "#25D36618", border: "1px solid #25D36635" }}>
                       {s.word}
-                      <span className="text-zinc-600 ml-1 text-xs">×{s.count}</span>
+                      <span className="text-zinc-500 ml-2 text-sm">×{s.count}</span>
                     </span>
                   ))}
                 </div>
               ) : (
-                <p className="text-zinc-700 text-sm">No slang detected</p>
+                <p className="text-zinc-600 text-base">No slang detected</p>
               )}
             </div>
           ))}
@@ -210,7 +211,7 @@ function StatCard({ card, active }) {
       {card.type === "bars" && (
         <>
           <h2 className="text-4xl font-bold text-white mb-2">{card.hero}</h2>
-          {card.subtitle && <p className="text-zinc-500 text-sm mb-2">{card.subtitle}</p>}
+          {card.subtitle && <p className="text-zinc-400 text-lg mb-2">{card.subtitle}</p>}
           <BarComparison people={card.value} />
         </>
       )}
@@ -219,9 +220,9 @@ function StatCard({ card, active }) {
       {card.type === "hour" && (
         <>
           <h2 className="text-6xl font-bold text-white mb-2">{card.value}</h2>
-          <p className="text-zinc-500 text-sm mb-1">{card.subtitle}</p>
+          <p className="text-zinc-400 text-lg mb-1">{card.subtitle}</p>
           <HourArc peakHour={card.peakHour} hourCounts={card.hourCounts} />
-          <p className="text-zinc-700 text-xs mt-3">activity by hour</p>
+          <p className="text-zinc-600 text-sm mt-3">activity by hour</p>
         </>
       )}
 
@@ -229,12 +230,12 @@ function StatCard({ card, active }) {
       {card.type === "longest" && (
         <div className="flex flex-col gap-4 w-full max-w-sm">
           {card.value.map((person, i) => (
-            <div key={i} className="border border-zinc-900 rounded-lg p-4">
+            <div key={i} className="bg-zinc-900 rounded-xl p-5">
               <div className="flex justify-between items-start mb-3">
-                <p className="text-zinc-500 text-xs uppercase tracking-widest">{person.name}</p>
-                <span className="text-[#25D366] text-xs font-mono">{person.length} chars</span>
+                <p className="text-zinc-400 text-sm uppercase tracking-widest">{person.name}</p>
+                <span className="text-[#25D366] text-base font-mono">{person.length} chars</span>
               </div>
-              <p className="text-zinc-400 text-sm leading-relaxed italic">"{person.preview}..."</p>
+              <p className="text-zinc-300 text-base leading-relaxed italic">"{person.preview}..."</p>
             </div>
           ))}
         </div>
@@ -244,15 +245,15 @@ function StatCard({ card, active }) {
       {card.type === "essays" && (
         <div className="flex flex-col gap-4 w-full max-w-sm">
           {card.value.map((person, i) => (
-            <div key={i} className="flex justify-between items-center border-b border-zinc-900 py-3">
-              <p className="text-zinc-400 text-sm truncate max-w-[180px]">{person.name}</p>
+            <div key={i} className="flex justify-between items-center bg-zinc-900 rounded-xl px-5 py-5">
+              <p className="text-zinc-300 text-base truncate max-w-[180px]">{person.name}</p>
               <div className="text-right">
-                <p className="text-white font-semibold">{person.avgLength} chars</p>
-                <p className="text-zinc-600 text-xs">avg message length</p>
+                <p className="text-white text-lg font-semibold">{person.avgLength} chars</p>
+                <p className="text-zinc-500 text-sm">avg message length</p>
               </div>
             </div>
           ))}
-          {card.subtitle && <p className="text-zinc-600 text-xs text-center mt-2">{card.subtitle}</p>}
+          {card.subtitle && <p className="text-zinc-500 text-base text-center mt-2">{card.subtitle}</p>}
         </div>
       )}
 
@@ -260,21 +261,21 @@ function StatCard({ card, active }) {
       {card.type === "ghost" && (
         <div className="flex flex-col gap-4 w-full max-w-sm">
           {card.value.length > 0 ? card.value.map((person, i) => (
-            <div key={i} className="flex justify-between items-center border-b border-zinc-900 py-3">
-              <p className="text-zinc-400 text-sm truncate max-w-[180px]">{person.name}</p>
+            <div key={i} className="flex justify-between items-center bg-zinc-900 rounded-xl px-5 py-5">
+              <p className="text-zinc-300 text-base truncate max-w-[180px]">{person.name}</p>
               <div className="text-right">
-                <p className="text-white font-semibold">
+                <p className="text-white text-lg font-semibold">
                   {person.avgResponseTime < 60
                     ? `${person.avgResponseTime}s`
                     : `${Math.round(person.avgResponseTime / 60)}m`}
                 </p>
-                <p className="text-zinc-600 text-xs">avg reply time</p>
+                <p className="text-zinc-500 text-sm">avg reply time</p>
               </div>
             </div>
           )) : (
-            <p className="text-zinc-600 text-sm text-center">Not enough data to calculate reply times</p>
+            <p className="text-zinc-500 text-base text-center">Not enough data to calculate reply times</p>
           )}
-          {card.subtitle && <p className="text-zinc-600 text-xs text-center mt-2">{card.subtitle}</p>}
+          {card.subtitle && <p className="text-zinc-500 text-base text-center mt-2">{card.subtitle}</p>}
         </div>
       )}
 
@@ -282,12 +283,12 @@ function StatCard({ card, active }) {
       {card.type === "personality" && (
         <div className="flex flex-col gap-5 w-full max-w-lg">
           {card.value.map((person, i) => (
-            <div key={i} className="border border-zinc-800 rounded-lg p-5 relative overflow-hidden">
+            <div key={i} className="bg-zinc-900 rounded-xl p-6 relative overflow-hidden">
               <div className="absolute inset-0 opacity-5"
                 style={{ background: "linear-gradient(135deg, #25D366, transparent)" }} />
-              <p className="text-zinc-600 text-[10px] uppercase tracking-widest mb-1">{person.name}</p>
+              <p className="text-zinc-500 text-sm uppercase tracking-widest mb-1">{person.name}</p>
               <p className="text-white text-2xl font-bold mb-2">{person.title}</p>
-              <p className="text-zinc-400 text-sm leading-relaxed">{person.summary}</p>
+              <p className="text-zinc-300 text-base leading-relaxed">{person.summary}</p>
             </div>
           ))}
         </div>
@@ -298,7 +299,7 @@ function StatCard({ card, active }) {
         <>
           <div className="w-px h-12 mb-8 mx-auto rounded-full" style={{ backgroundColor: "#25D366" }} />
           <h2 className="text-3xl font-bold text-white text-center leading-relaxed max-w-lg">{card.value}</h2>
-          <p className="text-zinc-600 text-xs mt-8 uppercase tracking-widest">group vibe</p>
+          <p className="text-zinc-500 text-base mt-8 uppercase tracking-widest">group vibe</p>
         </>
       )}
     </div>
@@ -329,11 +330,11 @@ function LoadingScreen() {
         <div className="absolute inset-2 rounded-full border-t border-[#25D366] animate-spin opacity-40"
           style={{ animationDuration: "1.5s", animationDirection: "reverse" }} />
       </div>
-      <p key={phaseIndex} className="text-zinc-400 text-sm tracking-wide"
+      <p key={phaseIndex} className="text-zinc-300 text-base tracking-wide"
         style={{ animation: "fadeIn 0.5s ease" }}>
         {phases[phaseIndex]}
       </p>
-      <p className="text-zinc-700 text-xs">your messages never leave this device</p>
+      <p className="text-zinc-600 text-sm">your messages never leave this device</p>
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
     </div>
   );
@@ -408,7 +409,6 @@ export default function Home() {
       const sortedPeople = [...parsed.people].sort((a, b) => b.messageCount - a.messageCount);
 
       const builtCards = [
-        // Card 1 — total messages
         {
           label: "Your Chat in Numbers",
           type: "number",
@@ -420,7 +420,6 @@ export default function Home() {
             { value: parsed.people.length, label: "people" },
           ],
         },
-        // Card 2 — who talks most
         {
           label: "The Talker",
           type: "bars",
@@ -428,7 +427,6 @@ export default function Home() {
           subtitle: `dominates with ${sortedPeople[0]?.messageCount.toLocaleString()} messages`,
           value: parsed.people,
         },
-        // Card 3 — peak hour
         {
           label: "Peak Hour",
           type: "hour",
@@ -437,7 +435,6 @@ export default function Home() {
           peakHour: parsed.peakHour,
           hourCounts: parsed.hourCounts,
         },
-        // Card 4 — busiest day
         {
           label: "Busiest Day Ever",
           type: "text",
@@ -445,7 +442,6 @@ export default function Home() {
           subtitle: `${parsed.peakDate?.count} messages in a single day`,
           detail: "that was a day.",
         },
-        // Card 5 — signature emoji
         {
           label: "Signature Emoji",
           type: "emoji",
@@ -457,7 +453,6 @@ export default function Home() {
               count: p.topEmoji[0]?.count,
             })),
         },
-        // Card 6 — favourite words
         {
           label: "Favourite Words",
           type: "words",
@@ -466,7 +461,6 @@ export default function Home() {
             words: p.topWords,
           })),
         },
-        // Card 7 — slang
         {
           label: "Slang Report",
           type: "slang",
@@ -475,7 +469,6 @@ export default function Home() {
             slangs: p.topSlang,
           })),
         },
-        // Card 8 — longest message
         {
           label: "Most Extra",
           type: "longest",
@@ -488,7 +481,6 @@ export default function Home() {
               preview: p.maxMessage,
             })),
         },
-        // Card 9 — who writes essays (avg message length) — uses "essays" type, NOT "ghost"
         {
           label: "Who Writes Essays",
           type: "essays",
@@ -500,7 +492,6 @@ export default function Home() {
             })),
           subtitle: "longer = more to say",
         },
-        // Card 10 — ghost mode (avg reply time) — uses "ghost" type
         {
           label: "Ghost Mode",
           type: "ghost",
@@ -513,20 +504,17 @@ export default function Home() {
             })),
           subtitle: "higher = takes longer to reply",
         },
-        // Card 11 — longest streak
         {
           label: "Longest Streak",
           type: "number",
           value: parsed.longestStreak,
           subtitle: "consecutive days of chatting",
         },
-        // Card 12 — personality
         {
           label: "Personality Report",
           type: "personality",
           value: data.personalities,
         },
-        // Card 13 — group vibe
         {
           label: "Final Verdict",
           type: "vibe",
@@ -559,22 +547,45 @@ export default function Home() {
         <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-md w-full">
           <div className="w-px h-16 mb-10 mx-auto" style={{ backgroundColor: "#25D366" }} />
           <h1 className="text-4xl font-bold tracking-tight mb-3">WhatsApp Wrapped</h1>
-          <p className="text-zinc-500 text-sm leading-relaxed mb-2">Your chat. Dissected. No messages leave your device.</p>
-          <p className="text-zinc-700 text-xs mb-10">
-            All processing happens locally in your browser. Only anonymized stats are sent for AI analysis.
+          <p className="text-zinc-400 text-base leading-relaxed mb-6">
+            Your chat. Dissected. No messages leave your device.
           </p>
+
+          {/* Privacy note */}
+          <div className="bg-zinc-900 rounded-xl px-5 py-5 mb-8 text-left w-full">
+            <p className="text-zinc-400 text-xs uppercase tracking-widest mb-4">Privacy</p>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start gap-3">
+                <span style={{ color: "#25D366" }} className="mt-[2px] text-base">—</span>
+                <p className="text-zinc-400 text-sm leading-relaxed">Your chat is processed entirely in your browser. It never leaves your device.</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span style={{ color: "#25D366" }} className="mt-[2px] text-base">—</span>
+                <p className="text-zinc-400 text-sm leading-relaxed">We use no cookies, no databases, and store nothing.</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span style={{ color: "#25D366" }} className="mt-[2px] text-base">—</span>
+                <p className="text-zinc-400 text-sm leading-relaxed">Only anonymized statistics — not messages — are sent for AI analysis.</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span style={{ color: "#25D366" }} className="mt-[2px] text-base">—</span>
+                <p className="text-zinc-400 text-sm leading-relaxed">When you close this tab, everything is gone.</p>
+              </div>
+            </div>
+          </div>
+
           <label className="cursor-pointer w-full">
             <div className="border border-zinc-800 rounded-xl px-6 py-10 hover:border-zinc-600 transition-all duration-300 group">
               <div className="w-px h-8 mx-auto mb-4 group-hover:h-12 transition-all duration-300"
                 style={{ backgroundColor: "#25D366" }} />
-              <p className="text-white text-sm font-medium mb-2">Drop your chat export here</p>
-              <p className="text-zinc-600 text-xs leading-relaxed">
+              <p className="text-white text-base font-medium mb-2">Drop your chat export here</p>
+              <p className="text-zinc-500 text-sm leading-relaxed">
                 WhatsApp → Chat → ⋮ → More → Export Chat → Without Media
               </p>
             </div>
             <input ref={fileRef} type="file" accept=".txt" className="hidden" onChange={handleFile} />
           </label>
-          {error && <p className="text-red-500 text-xs mt-5">{error}</p>}
+          {error && <p className="text-red-500 text-sm mt-5">{error}</p>}
         </div>
       )}
 
@@ -592,7 +603,7 @@ export default function Home() {
             ))}
           </div>
           <div className="flex justify-end px-8 pt-3">
-            <span className="text-zinc-700 text-xs tabular-nums">{currentCard + 1} / {cards.length}</span>
+            <span className="text-zinc-600 text-sm tabular-nums">{currentCard + 1} / {cards.length}</span>
           </div>
           <div className="relative flex-1">
             {cards.map((card, i) => (
@@ -601,18 +612,18 @@ export default function Home() {
           </div>
           <div className="flex items-center justify-between px-8 pb-10">
             <button onClick={prev} disabled={currentCard === 0}
-              className="text-zinc-600 text-sm hover:text-white transition-colors disabled:opacity-20 px-4 py-2">
+              className="text-zinc-500 text-base hover:text-white transition-colors disabled:opacity-20 px-4 py-2">
               ← prev
             </button>
-            <button onClick={restart} className="text-zinc-800 text-xs hover:text-zinc-500 transition-colors">
+            <button onClick={restart} className="text-zinc-700 text-sm hover:text-zinc-400 transition-colors">
               start over
             </button>
             <button onClick={next} disabled={currentCard === cards.length - 1}
-              className="text-zinc-600 text-sm hover:text-white transition-colors disabled:opacity-20 px-4 py-2">
+              className="text-zinc-500 text-base hover:text-white transition-colors disabled:opacity-20 px-4 py-2">
               next →
             </button>
           </div>
-          <p className="text-center text-zinc-800 text-xs pb-4">use arrow keys to navigate</p>
+          <p className="text-center text-zinc-700 text-sm pb-4">use arrow keys to navigate</p>
         </div>
       )}
     </main>
