@@ -1,65 +1,789 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { parseWhatsAppChat, buildGeminiPrompt } from "@/lib/parseChat";
+
+// Flowing curves background
+function AnimatedBackground() {
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden">
+      <svg
+        className="w-full h-full"
+        viewBox="0 0 1000 1000"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <defs>
+          <style>{`
+            @keyframes flow1 {
+              0% { d: path("M-100,300 C200,100 400,500 600,200 S900,400 1100,300"); }
+              50% { d: path("M-100,400 C150,200 350,600 650,250 S950,350 1100,450"); }
+              100% { d: path("M-100,300 C200,100 400,500 600,200 S900,400 1100,300"); }
+            }
+            @keyframes flow2 {
+              0% { d: path("M-100,600 C200,400 500,800 700,500 S950,650 1100,600"); }
+              50% { d: path("M-100,500 C250,700 450,300 750,600 S1000,450 1100,500"); }
+              100% { d: path("M-100,600 C200,400 500,800 700,500 S950,650 1100,600"); }
+            }
+            @keyframes flow3 {
+              0% { d: path("M-100,150 C300,300 500,50 800,250 S1000,100 1100,200"); }
+              50% { d: path("M-100,250 C250,50 550,350 750,150 S1050,300 1100,150"); }
+              100% { d: path("M-100,150 C300,300 500,50 800,250 S1000,100 1100,200"); }
+            }
+            @keyframes flow4 {
+              0% { d: path("M-100,800 C200,650 600,900 800,700 S1000,850 1100,800"); }
+              50% { d: path("M-100,750 C300,900 550,650 850,800 S1050,700 1100,850"); }
+              100% { d: path("M-100,800 C200,650 600,900 800,700 S1000,850 1100,800"); }
+            }
+          `}</style>
+        </defs>
+        <path
+  fill="none"
+  stroke="#25D366"
+  strokeWidth="1.5"
+  opacity="0.18"
+  style={{ animation: "flow1 12s ease-in-out infinite" }}
+  d="M-100,300 C200,100 400,500 600,200 S900,400 1100,300"
+/>
+<path
+  fill="none"
+  stroke="#25D366"
+  strokeWidth="1"
+  opacity="0.12"
+  style={{ animation: "flow2 16s ease-in-out infinite reverse" }}
+  d="M-100,600 C200,400 500,800 700,500 S950,650 1100,600"
+/>
+<path
+  fill="none"
+  stroke="#ffffff"
+  strokeWidth="0.8"
+  opacity="0.06"
+  style={{ animation: "flow3 20s ease-in-out infinite" }}
+  d="M-100,150 C300,300 500,50 800,250 S1000,100 1100,200"
+/>
+<path
+  fill="none"
+  stroke="#25D366"
+  strokeWidth="1"
+  opacity="0.10"
+  style={{ animation: "flow4 14s ease-in-out infinite reverse" }}
+  d="M-100,800 C200,650 600,900 800,700 S1000,850 1100,800"
+/>
+      </svg>
+    </div>
+  );
+}
+
+// Animated counter
+function Counter({ target, duration = 2000 }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const step = target / (duration / 16);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= target) {
+        setCount(target);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [target, duration]);
+  return <span>{count.toLocaleString()}</span>;
+}
+
+// Hour arc visualization
+function HourArc({ peakHour, hourCounts }) {
+  const max = Math.max(...hourCounts);
+  const bars = hourCounts.map((count, hour) => ({
+    hour,
+    height: max > 0 ? (count / max) * 100 : 0,
+    isPeak: hour === peakHour,
+  }));
+
+  return (
+    <div className="flex items-end gap-[2px] h-16 w-full max-w-sm mx-auto mt-6">
+      {bars.map(({ hour, height, isPeak }) => (
+        <div
+          key={hour}
+          className="flex-1 rounded-sm transition-all duration-500"
+          style={{
+            height: `${Math.max(height, 4)}%`,
+            backgroundColor: isPeak ? "#25D366" : "#27272a",
+            opacity: isPeak ? 1 : 0.6,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Bar comparison
+function BarComparison({ people }) {
+  const max = Math.max(...people.map((p) => p.messageCount));
+  return (
+    <div className="flex flex-col gap-3 w-full max-w-sm mx-auto mt-6">
+      {people
+        .sort((a, b) => b.messageCount - a.messageCount)
+        .map((p, i) => (
+          <div key={p.name}>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-zinc-400 truncate max-w-[180px]">{p.name}</span>
+              <span className="text-white">{p.messageCount.toLocaleString()}</span>
+            </div>
+            <div className="h-[3px] bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-1000"
+                style={{
+                  width: `${(p.messageCount / max) * 100}%`,
+                  backgroundColor: i === 0 ? "#25D366" : "#52525b",
+                  transitionDelay: `${i * 150}ms`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+// Single stat card
+function StatCard({ card, active }) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (active) {
+      const t = setTimeout(() => setShow(true), 100);
+      return () => clearTimeout(t);
+    } else {
+      setShow(false);
+    }
+  }, [active]);
+
+  return (
+    <div
+      className={`absolute inset-0 flex flex-col items-center justify-center px-8 transition-all duration-600 ${
+        active && show
+          ? "opacity-100 translate-y-0 scale-100"
+          : active
+          ? "opacity-0 translate-y-6 scale-98"
+          : "opacity-0 translate-y-6 scale-98 pointer-events-none"
+      }`}
+    >
+      {/* Label */}
+      <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-600 mb-8">
+        {card.label}
+      </p>
+
+      {/* Number card */}
+      {card.type === "number" && (
+        <>
+          <h2 className="text-[96px] font-bold text-white leading-none tabular-nums mb-3">
+            {active ? <Counter target={card.value} /> : "0"}
+          </h2>
+          {card.subtitle && (
+            <p className="text-zinc-500 text-sm">{card.subtitle}</p>
+          )}
+          {card.supporting && (
+            <div className="flex gap-6 mt-8">
+              {card.supporting.map((s, i) => (
+                <div key={i} className="text-center">
+                  <p className="text-white text-xl font-semibold">{s.value}</p>
+                  <p className="text-zinc-600 text-xs mt-1">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Text card */}
+      {card.type === "text" && (
+        <>
+          <h2 className="text-5xl font-bold text-white text-center leading-tight mb-3 max-w-lg">
+            {card.value}
+          </h2>
+          {card.subtitle && (
+            <p className="text-zinc-500 text-sm mt-2">{card.subtitle}</p>
+          )}
+          {card.detail && (
+            <p className="text-zinc-600 text-xs mt-1">{card.detail}</p>
+          )}
+        </>
+      )}
+
+      {/* Emoji card */}
+      {card.type === "emoji" && (
+        <div className="flex flex-col gap-6 w-full max-w-sm">
+          {card.value.map((person, i) => (
+            <div key={i} className="flex items-center justify-between border-b border-zinc-900 pb-4">
+              <div>
+                <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">
+                  {person.name}
+                </p>
+                <p className="text-zinc-400 text-xs">
+                  used {person.count} times
+                </p>
+              </div>
+              <span className="text-5xl">{person.emoji}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Words card */}
+      {card.type === "words" && (
+        <div className="flex flex-col gap-6 w-full max-w-sm">
+          {card.value.map((person, i) => (
+            <div key={i} className="border-b border-zinc-900 pb-4">
+              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-3">
+                {person.name}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {person.words.map((w, j) => (
+                  <span
+                    key={j}
+                    className="px-3 py-1 rounded-full text-sm border border-zinc-800 text-white"
+                    style={{
+                      fontSize: `${14 + j === 0 ? 4 : 0}px`,
+                      opacity: 1 - j * 0.15,
+                    }}
+                  >
+                    {w.word}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Slang card */}
+      {card.type === "slang" && (
+        <div className="flex flex-col gap-6 w-full max-w-sm">
+          {card.value.map((person, i) => (
+            <div key={i} className="border-b border-zinc-900 pb-4">
+              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-3">
+                {person.name}
+              </p>
+              {person.slangs.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {person.slangs.map((s, j) => (
+                    <span
+                      key={j}
+                      className="px-3 py-1 rounded-full text-sm text-white"
+                      style={{ backgroundColor: "#25D36620", border: "1px solid #25D36640" }}
+                    >
+                      {s.word}
+                      <span className="text-zinc-600 ml-1 text-xs">×{s.count}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-zinc-700 text-sm">No slang detected</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Bar chart card */}
+      {card.type === "bars" && (
+        <>
+          <h2 className="text-4xl font-bold text-white mb-2">{card.hero}</h2>
+          {card.subtitle && (
+            <p className="text-zinc-500 text-sm mb-2">{card.subtitle}</p>
+          )}
+          <BarComparison people={card.value} />
+        </>
+      )}
+
+      {/* Hour arc card */}
+      {card.type === "hour" && (
+        <>
+          <h2 className="text-6xl font-bold text-white mb-2">{card.value}</h2>
+          <p className="text-zinc-500 text-sm mb-1">{card.subtitle}</p>
+          <HourArc peakHour={card.peakHour} hourCounts={card.hourCounts} />
+          <p className="text-zinc-700 text-xs mt-3">activity by hour</p>
+        </>
+      )}
+
+      {/* Longest message card */}
+      {card.type === "longest" && (
+        <div className="flex flex-col gap-4 w-full max-w-sm">
+          {card.value.map((person, i) => (
+            <div key={i} className="border border-zinc-900 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-3">
+                <p className="text-zinc-500 text-xs uppercase tracking-widest">
+                  {person.name}
+                </p>
+                <span className="text-[#25D366] text-xs font-mono">
+                  {person.length} chars
+                </span>
+              </div>
+              <p className="text-zinc-400 text-sm leading-relaxed italic">
+                "{person.preview}..."
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Ghost mode card */}
+      {card.type === "ghost" && (
+        <div className="flex flex-col gap-4 w-full max-w-sm">
+          {card.value.map((person, i) => (
+            <div
+              key={i}
+              className="flex justify-between items-center border-b border-zinc-900 py-3"
+            >
+              <p className="text-zinc-400 text-sm truncate max-w-[180px]">
+                {person.name}
+              </p>
+              <div className="text-right">
+                <p className="text-white font-semibold">
+                  {person.avgResponse !== null
+                    ? person.avgResponse < 60
+                      ? `${person.avgResponse}s`
+                      : `${Math.round(person.avgResponse / 60)}m`
+                    : "—"}
+                </p>
+                <p className="text-zinc-600 text-xs">avg reply time</p>
+              </div>
+            </div>
+          ))}
+          {card.subtitle && (
+            <p className="text-zinc-600 text-xs text-center mt-2">{card.subtitle}</p>
+          )}
+        </div>
+      )}
+
+      {/* Personality card */}
+      {card.type === "personality" && (
+        <div className="flex flex-col gap-5 w-full max-w-lg">
+          {card.value.map((person, i) => (
+            <div
+              key={i}
+              className="border border-zinc-800 rounded-lg p-5 relative overflow-hidden"
+            >
+              <div
+                className="absolute inset-0 opacity-5"
+                style={{ background: "linear-gradient(135deg, #25D366, transparent)" }}
+              />
+              <p className="text-zinc-600 text-[10px] uppercase tracking-widest mb-1">
+                {person.name}
+              </p>
+              <p className="text-white text-2xl font-bold mb-2">{person.title}</p>
+              <p className="text-zinc-400 text-sm leading-relaxed">{person.summary}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Group vibe card */}
+      {card.type === "vibe" && (
+        <>
+          <div
+            className="w-1 h-12 mb-8 mx-auto rounded-full"
+            style={{ backgroundColor: "#25D366" }}
+          />
+          <h2 className="text-3xl font-bold text-white text-center leading-relaxed max-w-lg">
+            {card.value}
+          </h2>
+          <p className="text-zinc-600 text-xs mt-8 uppercase tracking-widest">
+            group vibe
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Loading screen
+function LoadingScreen() {
+  const phases = [
+    "reading your chat...",
+    "counting the messages...",
+    "detecting personalities...",
+    "analyzing patterns...",
+    "calculating who ghosts more...",
+    "almost there...",
+  ];
+  const [phaseIndex, setPhaseIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPhaseIndex((i) => (i + 1) % phases.length);
+    }, 1200);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center gap-6">
+      <div className="relative w-16 h-16">
+        <div className="absolute inset-0 rounded-full border border-zinc-800" />
+        <div
+          className="absolute inset-0 rounded-full border-t border-[#25D366] animate-spin"
+          style={{ animationDuration: "1s" }}
+        />
+        <div
+          className="absolute inset-2 rounded-full border-t border-[#25D366] animate-spin opacity-40"
+          style={{ animationDuration: "1.5s", animationDirection: "reverse" }}
+        />
+      </div>
+      <p
+        key={phaseIndex}
+        className="text-zinc-400 text-sm tracking-wide transition-all duration-500"
+        style={{ animation: "fadeIn 0.5s ease" }}
+      >
+        {phases[phaseIndex]}
+      </p>
+      <p className="text-zinc-700 text-xs">your messages never leave this device</p>
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
 
 export default function Home() {
+  const [phase, setPhase] = useState("upload");
+  const [cards, setCards] = useState([]);
+  const [currentCard, setCurrentCard] = useState(0);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+
+  function formatHour(hour) {
+    if (hour === 0) return "12 AM";
+    if (hour < 12) return `${hour} AM`;
+    if (hour === 12) return "12 PM";
+    return `${hour - 12} PM`;
+  }
+
+  const next = useCallback(() => {
+    setCurrentCard((c) => Math.min(c + 1, cards.length - 1));
+  }, [cards.length]);
+
+  const prev = useCallback(() => {
+    setCurrentCard((c) => Math.max(c - 1, 0));
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    function handleKey(e) {
+      if (phase !== "reveal") return;
+      if (e.key === "ArrowRight") next();
+      if (e.key === "ArrowLeft") prev();
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [phase, next, prev]);
+
+  async function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".txt")) {
+      setError("Please upload a WhatsApp chat export (.txt file)");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File too large. Please use a chat under 10MB.");
+      return;
+    }
+
+    setPhase("loading");
+    setError(null);
+
+    try {
+      const text = await file.text();
+      const parsed = parseWhatsAppChat(text);
+
+      if (parsed.totalMessages < 10) {
+        setError("Not enough messages to analyze. Try a longer chat.");
+        setPhase("upload");
+        return;
+      }
+
+      const prompt = buildGeminiPrompt(parsed);
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Analysis failed");
+      }
+
+      const { data } = await response.json();
+      const sortedPeople = [...parsed.people].sort(
+        (a, b) => b.messageCount - a.messageCount
+      );
+
+      const builtCards = [
+        // Card 1 — total messages
+        {
+          label: "Your Chat in Numbers",
+          type: "number",
+          value: parsed.totalMessages,
+          subtitle: "total messages",
+          supporting: [
+            { value: parsed.activeDays, label: "active days" },
+            { value: `${parsed.longestStreak}d`, label: "longest streak" },
+            { value: parsed.people.length, label: "people" },
+          ],
+        },
+        // Card 2 — who talks most
+        {
+          label: "The Talker",
+          type: "bars",
+          hero: sortedPeople[0]?.name,
+          subtitle: `dominates with ${sortedPeople[0]?.messageCount.toLocaleString()} messages`,
+          value: parsed.people,
+        },
+        // Card 3 — peak hour
+        {
+          label: "Peak Hour",
+          type: "hour",
+          value: formatHour(parsed.peakHour),
+          subtitle: "when this chat comes alive",
+          peakHour: parsed.peakHour,
+          hourCounts: parsed.hourCounts,
+        },
+        // Card 4 — busiest day
+        {
+          label: "Busiest Day Ever",
+          type: "text",
+          value: parsed.peakDate?.date || "—",
+          subtitle: `${parsed.peakDate?.count} messages in a single day`,
+          detail: "that was a day.",
+        },
+        // Card 5 — most used emoji
+        {
+          label: "Signature Emoji",
+          type: "emoji",
+          value: sortedPeople
+            .filter((p) => p.topEmoji.length > 0)
+            .map((p) => ({
+              name: p.name,
+              emoji: p.topEmoji[0]?.emoji,
+              count: p.topEmoji[0]?.count,
+            })),
+        },
+        // Card 6 — most used words
+        {
+          label: "Favourite Words",
+          type: "words",
+          value: sortedPeople.map((p) => ({
+            name: p.name,
+            words: p.topWords,
+          })),
+        },
+        // Card 7 — slang
+        {
+          label: "Slang Report",
+          type: "slang",
+          value: sortedPeople.map((p) => ({
+            name: p.name,
+            slangs: p.topSlang,
+          })),
+        },
+        // Card 8 — longest message
+        {
+          label: "Most Extra",
+          type: "longest",
+          value: sortedPeople
+            .sort((a, b) => b.maxMessageLength - a.maxMessageLength)
+            .slice(0, 2)
+            .map((p) => ({
+              name: p.name,
+              length: p.maxMessageLength,
+              preview: p.maxMessage,
+            })),
+        },
+        // Card 9 — avg message length
+        {
+          label: "Who Writes Essays",
+          type: "ghost",
+          value: sortedPeople
+            .sort((a, b) => b.avgMessageLength - a.avgMessageLength)
+            .map((p) => ({
+              name: p.name,
+              avgResponse: p.avgMessageLength,
+            })),
+          subtitle: "average message length in characters",
+        },
+        // Card 10 — ghost mode
+        {
+          label: "Ghost Mode",
+          type: "ghost",
+          value: sortedPeople
+            .filter((p) => p.avgResponseTime !== null)
+            .sort((a, b) => b.avgResponseTime - a.avgResponseTime)
+            .map((p) => ({
+              name: p.name,
+              avgResponse: p.avgResponseTime,
+            })),
+          subtitle: "higher = takes longer to reply",
+        },
+        // Card 11 — streak
+        {
+          label: "Longest Streak",
+          type: "number",
+          value: parsed.longestStreak,
+          subtitle: "consecutive days of chatting",
+        },
+        // Card 12 — personality
+        {
+          label: "Personality Report",
+          type: "personality",
+          value: data.personalities,
+        },
+        // Card 13 — group vibe
+        {
+          label: "Final Verdict",
+          type: "vibe",
+          value: data.groupVibe,
+        },
+      ];
+
+      setCards(builtCards);
+      setCurrentCard(0);
+      setPhase("reveal");
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+      setPhase("upload");
+    }
+  }
+
+  function restart() {
+    setPhase("upload");
+    setCards([]);
+    setCurrentCard(0);
+    setError(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
+    <main className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center justify-center">
+      <AnimatedBackground />
+
+      {/* Upload Phase */}
+      {phase === "upload" && (
+        <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-md w-full">
+          <div
+            className="w-px h-16 mb-10 mx-auto"
+            style={{ backgroundColor: "#25D366" }}
+          />
+          <h1 className="text-4xl font-bold tracking-tight mb-3">
+            WhatsApp Wrapped
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+          <p className="text-zinc-500 text-sm leading-relaxed mb-2">
+            Your chat. Dissected. No messages leave your device.
+          </p>
+          <p className="text-zinc-700 text-xs mb-10">
+            All processing happens locally in your browser. Only anonymized
+            stats are sent for AI analysis.
+          </p>
+
+          <label className="cursor-pointer w-full">
+            <div className="border border-zinc-800 rounded-xl px-6 py-10 hover:border-zinc-600 transition-all duration-300 group">
+              <div
+                className="w-px h-8 mx-auto mb-4 group-hover:h-12 transition-all duration-300"
+                style={{ backgroundColor: "#25D366" }}
+              />
+              <p className="text-white text-sm font-medium mb-2">
+                Drop your chat export here
+              </p>
+              <p className="text-zinc-600 text-xs leading-relaxed">
+                WhatsApp → Chat → ⋮ → More → Export Chat → Without Media
+              </p>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".txt"
+              className="hidden"
+              onChange={handleFile}
+            />
+          </label>
+
+          {error && (
+            <p className="text-red-500 text-xs mt-5">{error}</p>
+          )}
+        </div>
+      )}
+
+      {/* Loading Phase */}
+      {phase === "loading" && (
+        <div className="relative z-10">
+          <LoadingScreen />
+        </div>
+      )}
+
+      {/* Reveal Phase */}
+      {phase === "reveal" && (
+        <div className="relative z-10 w-full h-screen flex flex-col">
+          {/* Progress bar */}
+          <div className="flex gap-[3px] px-8 pt-8">
+            {cards.map((_, i) => (
+              <div
+                key={i}
+                onClick={() => setCurrentCard(i)}
+                className="h-[2px] flex-1 rounded-full cursor-pointer transition-all duration-500"
+                style={{
+                  backgroundColor: i <= currentCard ? "#25D366" : "#27272a",
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Card counter */}
+          <div className="flex justify-end px-8 pt-3">
+            <span className="text-zinc-700 text-xs tabular-nums">
+              {currentCard + 1} / {cards.length}
+            </span>
+          </div>
+
+          {/* Cards */}
+          <div className="relative flex-1">
+            {cards.map((card, i) => (
+              <StatCard key={i} card={card} active={i === currentCard} />
+            ))}
+          </div>
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between px-8 pb-10">
+            <button
+              onClick={prev}
+              disabled={currentCard === 0}
+              className="text-zinc-600 text-sm hover:text-white transition-colors disabled:opacity-20 px-4 py-2"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              ← prev
+            </button>
+            <button
+              onClick={restart}
+              className="text-zinc-800 text-xs hover:text-zinc-500 transition-colors"
             >
-              Learning
-            </a>{" "}
-            center.
+              start over
+            </button>
+            <button
+              onClick={next}
+              disabled={currentCard === cards.length - 1}
+              className="text-zinc-600 text-sm hover:text-white transition-colors disabled:opacity-20 px-4 py-2"
+            >
+              next →
+            </button>
+          </div>
+
+          {/* Keyboard hint */}
+          <p className="text-center text-zinc-800 text-xs pb-4">
+            use arrow keys to navigate
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }
