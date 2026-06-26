@@ -74,12 +74,22 @@ export async function POST(request) {
     });
 
     const text = completion.choices[0]?.message?.content || "";
+console.log("Groq raw response:", text);
 
-    // Strip markdown fences if model wraps response in ```json
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
+const clean = text.replace(/```json|```/g, "").trim();
 
-    return Response.json({ success: true, data: parsed });
+let parsed;
+try {
+  parsed = JSON.parse(clean);
+} catch (parseErr) {
+  console.error("JSON parse failed. Raw text was:", text);
+  return Response.json(
+    { error: "AI returned invalid response. Please try again." },
+    { status: 500 }
+  );
+}
+
+return Response.json({ success: true, data: parsed });
   } catch (err) {
     console.error("Analyze API error:", err);
     return Response.json(

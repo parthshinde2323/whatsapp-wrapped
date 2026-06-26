@@ -8,16 +8,23 @@ export function parseWhatsAppChat(text) {
   const dateCounts = {};
   let totalMessages = 0;
   let lastSender = null;
-  let lastTime = null;
+  let lastTimeSeconds = null;
   const responseTimes = {};
+
   const slangWords = new Set([
     "lol","lmao","omg","wtf","bruh","bro","sis","fam","lit","vibe",
     "slay","cap","nocap","bussin","goat","lowkey","highkey","sus",
     "yeet","flex","drip","woke","fomo","imo","tbh","ngl","irl",
     "smh","fr","nah","yah","bae","salty","savage","extra","basic",
-    "periodt","understood","valid","bet","facts","sheesh","ok","okay",
-    "haha","hahaha","lmfao","ikr","ik","idk","tysm","ty","np",
-    "rn","asap","btw","fyi","omw","gtg","brb","ttyl","cya",
+    "periodt","valid","bet","facts","sheesh","haha","hahaha","lmfao",
+    "ikr","ik","idk","tysm","ty","np","rn","asap","btw","fyi",
+    "omw","gtg","brb","ttyl","cya","bhai","yaar","arre","arey",
+    "kya","hai","nahi","haan","bas","chal","acha","theek","matlab",
+    "areh","oof","damn","dude","yo","sup","nope","yep","welp",
+    "istg","idc","idgaf","ffs","smh","rip","gg","glhf","afk",
+    "pls","plz","thx","u","ur","r","b","4","2","cuz","coz",
+    "gonna","wanna","gotta","kinda","sorta","lemme","gimme","ima",
+    "tf","stfu","gtfo","lmk","hmu","ofc","obvs","tbf","imo",
   ]);
 
   for (const line of lines) {
@@ -26,6 +33,16 @@ export function parseWhatsAppChat(text) {
 
     const [, date, time, sender, message] = match;
     const cleanSender = sender.trim();
+
+    // Skip system messages
+    if (
+      message.includes("Messages and calls are end-to-end encrypted") ||
+      message.includes("added") ||
+      message.includes("left") ||
+      message.includes("created group") ||
+      message.includes("changed the subject") ||
+      message === "<Media omitted>"
+    ) continue;
 
     if (!stats[cleanSender]) {
       stats[cleanSender] = {
@@ -37,7 +54,6 @@ export function parseWhatsAppChat(text) {
         words: {},
         emojis: {},
         slangs: {},
-        dates: {},
       };
     }
 
@@ -48,30 +64,30 @@ export function parseWhatsAppChat(text) {
 
     if (message.length > person.maxMessageLength) {
       person.maxMessageLength = message.length;
-      person.maxMessage = message.slice(0, 80);
+      person.maxMessage = message.slice(0, 100);
     }
 
-    // Word + slang frequency
-    const words = message.toLowerCase().match(/\b[a-z]{2,}\b/g) || [];
+    // Word frequency — minimal stopwords, keep it real
+    const words = message.toLowerCase().match(/\b[a-zA-Z]{2,}\b/g) || [];
     const stopWords = new Set([
       "the","and","for","that","this","with","have","from","they",
-      "will","been","were","just","your","what","when","about",
-      "okay","also","into","than","then","them","these","those",
-      "would","could","should","there","their","here","more","some",
-      "very","much","like","want","know","think","going","yeah",
+      "will","been","were","your","what","when","about","into",
+      "than","then","them","there","their","would","could","should",
+      "these","those","more","some","just","also","very","much",
     ]);
 
     for (const word of words) {
-      if (!stopWords.has(word)) {
-        person.words[word] = (person.words[word] || 0) + 1;
+      const w = word.toLowerCase();
+      if (!stopWords.has(w) && w.length >= 2) {
+        person.words[w] = (person.words[w] || 0) + 1;
       }
-      if (slangWords.has(word)) {
-        person.slangs[word] = (person.slangs[word] || 0) + 1;
+      if (slangWords.has(w)) {
+        person.slangs[w] = (person.slangs[w] || 0) + 1;
       }
     }
 
-    // Emoji frequency
-    const emojiRegex = /[\u{1F300}-\u{1FFFF}|\u{2600}-\u{27BF}]/gu;
+    // Emoji frequency — comprehensive regex
+    const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
     const emojis = message.match(emojiRegex) || [];
     for (const emoji of emojis) {
       person.emojis[emoji] = (person.emojis[emoji] || 0) + 1;
@@ -88,33 +104,42 @@ export function parseWhatsAppChat(text) {
 
     // Date tracking
     dateCounts[date] = (dateCounts[date] || 0) + 1;
-    person.dates[date] = (person.dates[date] || 0) + 1;
 
-    // Response time tracking
-    if (lastSender && lastSender !== cleanSender && lastTime) {
-      const timeDiff = parseTime(time) - parseTime(lastTime);
-      if (timeDiff > 0 && timeDiff < 3600) {
+    // Response time — only between different senders
+    const currentTimeSeconds = parseTimeToSeconds(time);
+    if (
+      lastSender &&
+      lastSender !== cleanSender &&
+      lastTimeSeconds !== null &&
+      currentTimeSeconds > lastTimeSeconds
+    ) {
+      const diff = currentTimeSeconds - lastTimeSeconds;
+      if (diff > 0 && diff < 7200) { // max 2 hours gap
         if (!responseTimes[cleanSender]) responseTimes[cleanSender] = [];
-        responseTimes[cleanSender].push(timeDiff);
+        responseTimes[cleanSender].push(diff);
       }
     }
 
     lastSender = cleanSender;
-    lastTime = time;
+    lastTimeSeconds = currentTimeSeconds;
   }
 
-  // Calculate streaks
-  const allDates = Object.keys(dateCounts).sort();
+  // Calculate streak using correct date parsing
+  const allDates = Object.keys(dateCounts).sort((a, b) => {
+    return parseDateToTimestamp(a) - parseDateToTimestamp(b);
+  });
+
   let maxStreak = 1;
   let currentStreak = 1;
+
   for (let i = 1; i < allDates.length; i++) {
-    const prev = new Date(allDates[i - 1]);
-    const curr = new Date(allDates[i]);
-    const diff = (curr - prev) / (1000 * 60 * 60 * 24);
-    if (diff === 1) {
+    const prevTs = parseDateToTimestamp(allDates[i - 1]);
+    const currTs = parseDateToTimestamp(allDates[i]);
+    const diffDays = Math.round((currTs - prevTs) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
       currentStreak++;
       maxStreak = Math.max(maxStreak, currentStreak);
-    } else {
+    } else if (diffDays > 1) {
       currentStreak = 1;
     }
   }
@@ -127,15 +152,15 @@ export function parseWhatsAppChat(text) {
     maxMessage: person.maxMessage,
     topWords: Object.entries(person.words)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+      .slice(0, 6)
       .map(([word, count]) => ({ word, count })),
     topEmoji: Object.entries(person.emojis)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
+      .slice(0, 1)
       .map(([emoji, count]) => ({ emoji, count })),
     topSlang: Object.entries(person.slangs)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
+      .slice(0, 5)
       .map(([word, count]) => ({ word, count })),
     avgResponseTime: responseTimes[person.name]
       ? Math.round(
@@ -159,7 +184,7 @@ export function parseWhatsAppChat(text) {
   };
 }
 
-function parseTime(timeStr) {
+function parseTimeToSeconds(timeStr) {
   const match = timeStr.match(/(\d{1,2}):(\d{2})/);
   if (!match) return 0;
   let hours = parseInt(match[1]);
@@ -167,6 +192,15 @@ function parseTime(timeStr) {
   if (timeStr.toLowerCase().includes("pm") && hours !== 12) hours += 12;
   if (timeStr.toLowerCase().includes("am") && hours === 12) hours = 0;
   return hours * 3600 + mins * 60;
+}
+
+function parseDateToTimestamp(dateStr) {
+  // Handles d/m/yy and d/m/yyyy formats
+  const parts = dateStr.split("/");
+  if (parts.length !== 3) return 0;
+  let [day, month, year] = parts.map(Number);
+  if (year < 100) year += 2000;
+  return new Date(year, month - 1, day).getTime();
 }
 
 export function buildGeminiPrompt(parsedData) {
@@ -177,9 +211,9 @@ export function buildGeminiPrompt(parsedData) {
     )
     .join("\n");
 
-  return `Analyze these WhatsApp chat statistics and generate personality insights. Do not use actual message content — only these stats.
+  return `Analyze these WhatsApp chat statistics and generate personality insights. These are stats only — not actual messages.
 
-Chat stats:
+Stats:
 - Total messages: ${parsedData.totalMessages}
 - Active days: ${parsedData.activeDays}
 - Longest streak: ${parsedData.longestStreak} days
@@ -190,13 +224,13 @@ ${peopleDesc}
 
 For each person give:
 1. A sharp, clever personality title (max 4 words, no emojis, no hashtags)
-2. One witty sentence about their chat personality
+2. One witty sentence about their chat personality (max 20 words)
 
-Respond ONLY in this exact JSON format, no extra text, no markdown:
+Respond ONLY in this exact JSON format. No extra text, no markdown, no explanation:
 {
   "personalities": [
     { "name": "Person Name", "title": "Their Title", "summary": "One sentence." }
   ],
-  "groupVibe": "One sharp sentence describing the overall group dynamic."
+  "groupVibe": "One sharp sentence about the group dynamic."
 }`;
 }
